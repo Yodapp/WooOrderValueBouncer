@@ -12,6 +12,12 @@
 
 defined('ABSPATH') || exit;
 
+//Check if WooCommerce is active
+if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
+    return;
+}
+
+
 // Add the settings page
 function minimum_order_amount_add_settings_page()
 {
@@ -22,10 +28,33 @@ add_action('admin_menu', 'minimum_order_amount_add_settings_page');
 // Register the settings
 function minimum_order_amount_register_settings()
 {
-    register_setting('minimum-order-amount-settings-group', 'minimum_order_amount_minimum');
-    register_setting('minimum-order-amount-settings-group', 'minimum_order_amount_message');
+    register_setting('minimum-order-amount-settings-group', 'minimum_order_amount_minimum', 'minimum_order_amount_minimum_validate');
+    register_setting('minimum-order-amount-settings-group', 'minimum_order_amount_message', 'minimum_order_amount_message_validate');
 }
 add_action('admin_init', 'minimum_order_amount_register_settings');
+
+// Validate minimum order amount setting
+function minimum_order_amount_minimum_validate($input)
+{
+    $input = intval($input);
+    if (!is_int($input) || $input < 0) {
+        add_settings_error('minimum_order_amount_minimum', 'minimum_order_amount_minimum_error', 'Minimum Order Amount should be an integer greater than or equal to 0');
+        return get_option('minimum_order_amount_minimum');
+    }
+    return $input;
+}
+
+// Validate message setting
+function minimum_order_amount_message_validate($input)
+{
+    $input = sanitize_text_field($input);
+    $input = wp_kses_post($input);
+    if (empty($input)) {
+        add_settings_error('minimum_order_amount_message', 'minimum_order_amount_message_error', 'Message should not be empty');
+        return get_option('minimum_order_amount_message');
+    }
+    return $input;
+}
 
 // The settings page
 function minimum_order_amount_settings_page()
@@ -36,7 +65,6 @@ function minimum_order_amount_settings_page()
         <p><strong>Prevents customer to checkout if their order value is below the minimum order amount.</strong></p>
         <form method="post" action="options.php">
             <?php settings_fields('minimum-order-amount-settings-group'); ?>
-            <?php do_settings_sections('minimum-order-amount-settings-group'); ?>
             <table class="form-table">
                 <tr valign="top">
                     <th scope="row">Minimum Order Amount</th>
@@ -54,6 +82,7 @@ function minimum_order_amount_settings_page()
             <?php submit_button(); ?>
         </form>
     </div>
+
 <?php
 }
 
@@ -64,11 +93,28 @@ $message = get_option('minimum_order_amount_message', 'Your current order total 
 // Display a message in the cart if the order total is below the minimum
 function minimum_order_amount_cart_notice()
 {
-
-    global $woocommerce;
     global $minimum;
-    if ($woocommerce->cart->total < $minimum) {
-        wp_redirect(wc_get_cart_url());
+    global $message;
+    $cart_total = WC()->cart->total;
+    if ($cart_total < $minimum) {
+        wc_add_notice($message, 'error');
+        wp_redirect(wc_get_page_permalink('cart'));
         exit;
     }
 }
+
+//Redirect user back to previous page if the order total is below the minimum
+function minimum_order_amount_checkout_notice()
+{
+    global $minimum;
+    global $message;
+    $cart_total = WC()->cart->total;
+    if ($cart_total < $minimum) {
+        wc_add_notice($message, 'error');
+        wp_redirect(wc_get_page_permalink('cart'));
+        exit;
+    }
+}
+
+add_action('woocommerce_check_cart_items', 'minimum_order_amount_cart_notice');
+add_action('woocommerce_before_checkout_process', 'minimum_order_amount_checkout_notice');
