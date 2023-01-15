@@ -4,7 +4,7 @@
  * Plugin Name: Order Value Bouncer - Minimum Order Amount for WooCommerce
  * Plugin URI: https://danielnordmark.se/plugins/order-value-bouncer-for-woocommerce/
  * Description: Set a minimum order amount for WooCommerce and displays a message if the order total is below the minimum. If the order amount is bellow the setting the user won't be able to go to the checkout page.
- * Version: 0.1b
+ * Version: 0.3-alpha
  * Author: Daniel Nordmark
  * Author URI: https://danielnordmark.se
  * License: GPL2
